@@ -1,30 +1,17 @@
 services:
-  - type: pserv
-    name: iam-db
-    runtime: image
-    plan: starter
-    region: singapore
-    postgresMajorVersion: "16"
-    envVars:
-      - key: DATABASE_URL
-        fromService:
-          type: pserv
-          name: iam-db
-          property: connectionString
-
   - type: web
     name: iam-tfba
     runtime: docker
-    plan: starter
-    region: singapore
+    plan: free
+    region: oregon
     repo: https://github.com/Kirsnickk/Snipe
     branch: main
     dockerfilePath: ./Dockerfile
     autoDeploy: true
     healthCheckPath: /login
     disk:
-      name: snipe-uploads
-      mountPath: /var/www/html/storage/app/public
+      name: snipe-data
+      mountPath: /var/lib/snipeit
       sizeGB: 5
     envVars:
       - key: APP_ENV
@@ -35,17 +22,14 @@ services:
         value: https://iam-tfba.onrender.com
       - key: APP_TIMEZONE
         value: Asia/Ho_Chi_Minh
-      - key: APP_KEY
-        generateValue: true
+      - key: APP_LOCALE
+        value: en
       - key: LOG_CHANNEL
         value: stderr
       - key: DB_CONNECTION
-        value: pgsql
-      - key: DATABASE_URL
-        fromService:
-          type: pserv
-          name: iam-db
-          property: connectionString
+        value: sqlite
+      - key: DB_DATABASE
+        value: /var/lib/snipeit/snipeit.sqlite
       - key: FILESYSTEM_DISK
         value: local
       - key: SESSION_DRIVER
@@ -54,9 +38,11 @@ services:
         value: file
       - key: QUEUE_CONNECTION
         value: sync
-      - key: MAX_UPLOAD_SIZE
-        value: "25600"
-      - key: UPLOAD_MAX_FILESIZE
-        value: "25600"
-      - key: POST_MAX_SIZE
-        value: "25600"
+      - key: MAIL_MAILER
+        value: log
+      - key: PHP_UPLOAD_LIMIT
+        value: "25"
+      - key: SEED_ADMIN_EMAIL
+        value: admin@kirsnickk.com
+      - key: SEED_ADMIN_PASSWORD
+        generateValue: true

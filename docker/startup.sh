@@ -44,10 +44,21 @@ file_env MAIL_PASSWORD
 # fix key if needed
 if [ -z "$APP_KEY" -a -z "$APP_KEY_FILE" ]
 then
-  echo "Please re-run this container with an environment variable \$APP_KEY"
-  echo "An example APP_KEY you could use is: "
-  /var/www/html/artisan key:generate --show
-  exit
+  # AUTO-GENERATE: generate APP_KEY and persist in /var/lib/snipeit/keys/.env
+  # so restarts reuse the same key (ponytail: per-deploy ephemeral is fine for free tier).
+  mkdir -p /var/lib/snipeit/keys
+  if [ -f /var/lib/snipeit/keys/.env ]; then
+    set -a; . /var/lib/snipeit/keys/.env; set +a
+  fi
+  if [ -z "$APP_KEY" ]; then
+    GENERATED_KEY=$(php artisan key:generate --force --show 2>/dev/null | tail -1)
+    if [ -z "$GENERATED_KEY" ]; then
+      GENERATED_KEY="base64:$(head -c 32 /dev/urandom | base64)"
+    fi
+    echo "APP_KEY=$GENERATED_KEY" > /var/lib/snipeit/keys/.env
+    export APP_KEY="$GENERATED_KEY"
+    echo "[startup] auto-generated APP_KEY"
+  fi
 fi
 
 if [ -f /var/lib/snipeit/ssl/snipeit-ssl.crt -a -f /var/lib/snipeit/ssl/snipeit-ssl.key ]
@@ -98,6 +109,14 @@ chown -R docker:root /var/lib/snipeit/dumps
 chown -R docker:root /var/lib/snipeit/keys
 chown -R docker:root /var/www/html/storage/framework/cache
 
+# AUTO: ensure SQLite file exists and is writable (Render free tier, no Postgres)
+if [ "$DB_CONNECTION" = "sqlite" ]; then
+  mkdir -p "$(dirname "$DB_DATABASE")"
+  touch "$DB_DATABASE"
+  chown docker:root "$DB_DATABASE" 2>/dev/null || true
+  echo "[startup] sqlite ready at $DB_DATABASE"
+fi
+
 # Fix php settings
 if [ -v "PHP_UPLOAD_LIMIT" ]
 then
@@ -145,6 +164,31 @@ php artisan migrate --force
 php artisan config:clear
 php artisan config:cache
 php artisan view:clear
+
+# AUTO: storage symlink for public file access
+if [ ! -L /var/www/html/public/storage ]; then
+  php artisan storage:link 2>&1 | tail -2 || true
+fi
+
+# AUTO: seed first admin user if SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD are set
+# and no admin exists yet. Used by Render deploy — credentials live in /var/lib/snipeit/keys/.env
+if [ -n "$SEED_ADMIN_EMAIL" ] && [ -n "$SEED_ADMIN_PASSWORD" ]; then
+  EXISTING=$(php artisan tinker --execute='echo \App\Models\User::where("permissions","superuser")->count();' 2>/dev/null | tr -d '[:space:]')
+  if [ "$EXISTING" = "0" ] || [ -z "$EXISTING" ]; then
+    echo "[startup] seeding first admin $SEED_ADMIN_EMAIL"
+    php artisan tinker --execute="
+      \$u = new \App\Models\User();
+      \$u->first_name = 'Admin';
+      \$u->last_name = 'User';
+      \$u->username = 'admin';
+      \$u->email = '$SEED_ADMIN_EMAIL';
+      \$u->password = bcrypt('$SEED_ADMIN_PASSWORD');
+      \$u->permissions = 'superuser';
+      \$u->activated = 1;
+      \$u->save();
+    " 2>&1 | tail -3 || true
+  fi
+fi
 
 # we do this after the artisan commands to ensure that if the laravel
 # log got created by root, we set the permissions back
