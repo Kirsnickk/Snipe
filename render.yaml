@@ -1,0 +1,62 @@
+services:
+  - type: pserv
+    name: iam-db
+    runtime: image
+    plan: starter
+    region: singapore
+    postgresMajorVersion: "16"
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: pserv
+          name: iam-db
+          property: connectionString
+
+  - type: web
+    name: iam-tfba
+    runtime: docker
+    plan: starter
+    region: singapore
+    repo: https://github.com/Kirsnickk/Snipe
+    branch: main
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /login
+    disk:
+      name: snipe-uploads
+      mountPath: /var/www/html/storage/app/public
+      sizeGB: 5
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        value: https://iam-tfba.onrender.com
+      - key: APP_TIMEZONE
+        value: Asia/Ho_Chi_Minh
+      - key: APP_KEY
+        generateValue: true
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        fromService:
+          type: pserv
+          name: iam-db
+          property: connectionString
+      - key: FILESYSTEM_DISK
+        value: local
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: MAX_UPLOAD_SIZE
+        value: "25600"
+      - key: UPLOAD_MAX_FILESIZE
+        value: "25600"
+      - key: POST_MAX_SIZE
+        value: "25600"
