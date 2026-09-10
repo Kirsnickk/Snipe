@@ -1,0 +1,44 @@
+<?php
+
+return [
+
+    'does_not_exist' => 'Tillbehöret [:id] finns inte.',
+    'not_found' => 'Tillbehöret hittades inte.',
+    'assoc_users' => 'Detta tillbehör har för närvarande :count objekt utcheckade till användare. Checka in tillbehöret och försök igen. ',
+
+    'create' => [
+        'error' => 'Tillbehöret kunde inte skapas. Vänligen försök igen.',
+        'success' => 'Tillbehör skapat.',
+    ],
+
+    'update' => [
+        'error' => 'Tillbehöret kunde inte uppdateras. Vänligen försök igen.',
+        'success' => 'Tillbehör uppdaterat.',
+    ],
+
+    'delete' => [
+        'confirm' => 'Är du säker på att du vill ta bort det här tillbehöret?',
+        'error' => 'Ett fel uppstod när tillbehöret skulle tas bort. Vänligen försök igen.',
+        'success' => 'Tillbehör raderat.',
+        'bulk_success' => 'Accessory deleted successfully.|:count accessories were deleted successfully.',
+        'partial_success' => ':count accessory was deleted successfully, but others could not be deleted. See below for details.|:count accessories were deleted successfully, but others could not be deleted. See below for details.',
+    ],
+
+    'checkout' => [
+        'error' => 'Tillbehöret kunde inte checkas ut. Vänligen försök igen.',
+        'success' => 'Tillbehör utcheckat.',
+        'unavailable' => 'Tillbehöret är inte tillgängligt för utcheckning. Kontrollera antal tillgängligt',
+        'user_does_not_exist' => 'Användaren är ogiltig. Vänligen försök igen.',
+        'checkout_qty' => [
+            'lte' => 'Det finns för närvarande bara ett tillgängligt tillbehör av den här typen, och du försöker checka ut :checkout_qty stycken. Vänligen justera utcheckningsantalet eller det totala lagret av detta tillbehör och försök igen.|Det finns totalt :number_currently_remaining tillgängliga tillbehör, och du försöker checka ut :checkout_qty stycken. Vänligen justera utcheckningsantalet eller det totala lagret av detta tillbehör och försök igen.',
+        ],
+
+    ],
+
+    'checkin' => [
+        'error' => 'Tillbehöret kunde inte checkas in. Vänligen försök igen.',
+        'success' => 'Tillbehör incheckat.',
+        'user_does_not_exist' => 'Användaren är ogiltig. Vänligen försök igen.',
+    ],
+
+];

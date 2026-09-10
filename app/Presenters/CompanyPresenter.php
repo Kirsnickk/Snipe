@@ -1,0 +1,245 @@
+<?php
+
+namespace App\Presenters;
+
+/**
+ * Class CompanyPresenter
+ */
+class CompanyPresenter extends Presenter
+{
+    /**
+     * Json Column Layout for bootstrap table
+     *
+     * @return string
+     */
+    public static function dataTableLayout()
+    {
+        $layout = [
+            [
+                'field' => 'checkbox',
+                'scope' => 'col',
+                'checkbox' => true,
+                'formatter' => 'checkboxEnabledFormatter',
+                'titleTooltip' => trans('general.select_all_none'),
+                'printIgnore' => true,
+                'class' => 'hidden-print',
+            ], [
+                'field' => 'id',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.id'),
+                'visible' => false,
+            ], [
+                'field' => 'name',
+                'scope' => 'col',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => false,
+                'title' => trans('admin/companies/table.name'),
+                'visible' => true,
+                'formatter' => 'companiesLinkFormatter',
+            ], [
+                'field' => 'parent',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/companies/table.parent'),
+                'visible' => true,
+                'formatter' => 'companiesLinkObjFormatter',
+            ], [
+                'field' => 'children_count',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/companies/table.children'),
+                'visible' => true,
+                'class' => 'text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
+                'field' => 'phone',
+                'scope' => 'col',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/users/table.phone'),
+                'visible' => false,
+                'formatter' => 'phoneFormatter',
+            ], [
+                'field' => 'fax',
+                'scope' => 'col',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/suppliers/table.fax'),
+                'visible' => false,
+                'formatter' => 'phoneFormatter',
+            ], [
+                'field' => 'email',
+                'scope' => 'col',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/suppliers/table.email'),
+                'visible' => true,
+                'formatter' => 'emailFormatter',
+            ], [
+                'field' => 'image',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.image'),
+                'visible' => true,
+                'formatter' => 'imageFormatter',
+            ], [
+                'field' => 'users_count',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => trans('general.users'),
+                'visible' => true,
+                'class' => 'css-users text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
+                'field' => 'assets_count',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => trans('general.assets'),
+                'visible' => true,
+                'class' => 'css-barcode text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
+                'field' => 'licenses_count',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => trans('general.licenses'),
+                'visible' => true,
+                'class' => 'css-license text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
+                'field' => 'accessories_count',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => trans('general.accessories'),
+                'visible' => true,
+                'class' => 'css-accessory text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
+                'field' => 'consumables_count',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => trans('general.consumables'),
+                'visible' => true,
+                'class' => 'css-consumable text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
+                'field' => 'components_count',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => trans('general.components'),
+                'visible' => true,
+                'class' => 'css-component text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
+                'field' => 'tag_color',
+                'scope' => 'col',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.tag_color'),
+                'visible' => false,
+                'formatter' => 'colorTagFormatter',
+            ],
+            [
+                'field' => 'notes',
+                'scope' => 'col',
+                'searchable' => true,
+                'sortable' => true,
+                'visible' => false,
+                'title' => trans('general.notes'),
+            ], [
+                'field' => 'created_by',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => trans('general.created_by'),
+                'visible' => false,
+                'formatter' => 'usersLinkObjFormatter',
+            ], [
+                'field' => 'created_at',
+                'scope' => 'col',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.created_at'),
+                'visible' => false,
+                'formatter' => 'dateDisplayFormatter',
+            ], [
+                'field' => 'updated_at',
+                'scope' => 'col',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.updated_at'),
+                'visible' => false,
+                'formatter' => 'dateDisplayFormatter',
+            ], [
+                'field' => 'actions',
+                'scope' => 'col',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => false,
+                'title' => trans('table.actions'),
+                'visible' => true,
+                'formatter' => 'companiesActionsFormatter',
+                'printIgnore' => true,
+                'class' => 'hidden-print',
+            ],
+        ];
+
+        return json_encode($layout);
+    }
+
+    /**
+     * Link to this companies name
+     *
+     * @return string
+     */
+    public function nameUrl()
+    {
+        if (auth()->user()->can('view', ['\App\Models\Company', $this])) {
+            return '<a href="'.route('companies.show', $this->id).'">'.e($this->display_name).'</a>';
+        } else {
+            return e($this->display_name);
+        }
+    }
+
+    /**
+     * Url to view this item.
+     *
+     * @return string
+     */
+    public function viewUrl()
+    {
+        return route('companies.show', $this->id);
+    }
+
+    public function formattedNameLink()
+    {
+
+        if (auth()->user()->can('view', ['\App\Models\Company', $this])) {
+            return ($this->tag_color ? "<i class='fa-solid fa-fw fa-square' style='color: ".e($this->tag_color)."' aria-hidden='true'></i>" : '').'<a href="'.route('companies.show', e($this->id)).'">'.e($this->display_name).'</a>';
+        }
+
+        return ($this->tag_color ? "<i class='fa-solid fa-fw fa-square' style='color: ".e($this->tag_color)."' aria-hidden='true'></i>" : '').e($this->display_name);
+    }
+}
