@@ -109,13 +109,32 @@ chown -R docker:root /var/lib/snipeit/dumps
 chown -R docker:root /var/lib/snipeit/keys
 chown -R docker:root /var/www/html/storage/framework/cache
 
-# AUTO: ensure SQLite file exists and is writable (Render free tier, no Postgres)
+# AUTO: detect missing DB_HOST (no Postgres available) and force SQLite early.
+# Must run BEFORE `php artisan migrate` so Laravel picks up the right driver.
+if [ -z "$DB_HOST" ] && [ "$DB_CONNECTION" != "sqlite" ]; then
+  echo "[startup] no DB_HOST set — forcing sqlite (Render free tier fallback)"
+  export DB_CONNECTION=sqlite
+  export DB_DATABASE=/var/lib/snipeit/snipeit.sqlite
+  export SESSION_DRIVER=file
+  export CACHE_STORE=file
+fi
+
+# AUTO: ensure SQLite file exists and is writable
 if [ "$DB_CONNECTION" = "sqlite" ]; then
   mkdir -p "$(dirname "$DB_DATABASE")"
   touch "$DB_DATABASE"
   chown docker:root "$DB_DATABASE" 2>/dev/null || true
   echo "[startup] sqlite ready at $DB_DATABASE"
 fi
+
+# AUTO: default seed admin credentials if SEED vars not set (Render free tier)
+SEED_ADMIN_EMAIL="${SEED_ADMIN_EMAIL:-admin@kirsnickk.local}"
+SEED_ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD:-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)}"
+# Persist so restarts reuse
+mkdir -p /var/lib/snipeit/keys
+echo "SEED_ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD" >> /var/lib/snipeit/keys/.env 2>/dev/null || true
+export SEED_ADMIN_EMAIL SEED_ADMIN_PASSWORD
+echo "[startup] seed admin: $SEED_ADMIN_EMAIL / (in /var/lib/snipeit/keys/.env)"
 
 # Fix php settings
 if [ -v "PHP_UPLOAD_LIMIT" ]
