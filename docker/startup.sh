@@ -119,6 +119,12 @@ if [ -z "$DB_HOST" ] && [ "$DB_CONNECTION" != "sqlite" ]; then
   export CACHE_STORE=file
 fi
 
+# AUTO: even if DB_CONNECTION=sqlite but DB_DATABASE is default-relative, override
+if [ "$DB_CONNECTION" = "sqlite" ] && [[ "$DB_DATABASE" != /* ]]; then
+  echo "[startup] DB_DATABASE was relative, forcing absolute path"
+  export DB_DATABASE=/var/lib/snipeit/snipeit.sqlite
+fi
+
 # AUTO: ensure SQLite file exists and is writable
 if [ "$DB_CONNECTION" = "sqlite" ]; then
   mkdir -p "$(dirname "$DB_DATABASE")"
