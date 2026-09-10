@@ -127,12 +127,11 @@ if [ "$DB_CONNECTION" = "sqlite" ]; then
   echo "[startup] sqlite at $DB_DATABASE"
 fi
 
-# AUTO: write a minimal .env so Laravel picks up our env (no .env exists in image).
-# Render doesn't auto-write .env from process env — Laravel reads .env file.
+# AUTO: write a minimal .env so Laravel picks up our env. Always overwrite
+# the image's default docker.env (which assumes mysql + linked container).
 ENV_FILE=/var/www/html/.env
-if [ ! -f "$ENV_FILE" ]; then
-  echo "[startup] writing minimal .env"
-  cat > "$ENV_FILE" <<EOF
+echo "[startup] writing .env (overrides image default docker.env)"
+cat > "$ENV_FILE" <<EOF
 APP_ENV=${APP_ENV:-production}
 APP_DEBUG=${APP_DEBUG:-false}
 APP_URL=${APP_URL:-https://iam-tfba.onrender.com}
@@ -142,19 +141,17 @@ APP_LOCALE=${APP_LOCALE:-en}
 LOG_CHANNEL=${LOG_CHANNEL:-stderr}
 DB_CONNECTION=${DB_CONNECTION:-sqlite}
 DB_DATABASE=${DB_DATABASE:-/var/lib/snipeit/snipeit.sqlite}
-DB_HOST=${DB_HOST:-}
-DB_PORT=${DB_PORT:-}
-DB_DATABASE_=${DB_DATABASE_:-}
-DB_USERNAME=${DB_USERNAME:-}
-DB_PASSWORD=${DB_PASSWORD:-}
+DB_HOST=
+DB_PORT=
+DB_USERNAME=
+DB_PASSWORD=
 FILESYSTEM_DISK=${FILESYSTEM_DISK:-local}
 SESSION_DRIVER=${SESSION_DRIVER:-file}
 CACHE_STORE=${CACHE_STORE:-file}
 QUEUE_CONNECTION=${QUEUE_CONNECTION:-sync}
 MAIL_MAILER=${MAIL_MAILER:-log}
 EOF
-  chown docker:root "$ENV_FILE"
-fi
+chown docker:root "$ENV_FILE"
 
 # AUTO: default seed admin credentials if SEED vars not set (Render free tier)
 SEED_ADMIN_EMAIL="${SEED_ADMIN_EMAIL:-admin@kirsnickk.local}"
