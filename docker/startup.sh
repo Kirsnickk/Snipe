@@ -111,26 +111,49 @@ chown -R docker:root /var/www/html/storage/framework/cache
 
 # AUTO: detect missing DB_HOST (no Postgres available) and force SQLite early.
 # Must run BEFORE `php artisan migrate` so Laravel picks up the right driver.
+# Also write a minimal .env so Laravel sees our DB_DATABASE (otherwise it falls
+# back to /var/www/html/database/database.sqlite which doesn't exist).
 if [ -z "$DB_HOST" ] && [ "$DB_CONNECTION" != "sqlite" ]; then
   echo "[startup] no DB_HOST set — forcing sqlite (Render free tier fallback)"
   export DB_CONNECTION=sqlite
-  export DB_DATABASE=/var/lib/snipeit/snipeit.sqlite
   export SESSION_DRIVER=file
   export CACHE_STORE=file
 fi
-
-# AUTO: even if DB_CONNECTION=sqlite but DB_DATABASE is default-relative, override
-if [ "$DB_CONNECTION" = "sqlite" ] && [[ "$DB_DATABASE" != /* ]]; then
-  echo "[startup] DB_DATABASE was relative, forcing absolute path"
-  export DB_DATABASE=/var/lib/snipeit/snipeit.sqlite
-fi
-
-# AUTO: ensure SQLite file exists and is writable
 if [ "$DB_CONNECTION" = "sqlite" ]; then
+  export DB_DATABASE=/var/lib/snipeit/snipeit.sqlite
   mkdir -p "$(dirname "$DB_DATABASE")"
   touch "$DB_DATABASE"
   chown docker:root "$DB_DATABASE" 2>/dev/null || true
-  echo "[startup] sqlite ready at $DB_DATABASE"
+  echo "[startup] sqlite at $DB_DATABASE"
+fi
+
+# AUTO: write a minimal .env so Laravel picks up our env (no .env exists in image).
+# Render doesn't auto-write .env from process env — Laravel reads .env file.
+ENV_FILE=/var/www/html/.env
+if [ ! -f "$ENV_FILE" ]; then
+  echo "[startup] writing minimal .env"
+  cat > "$ENV_FILE" <<EOF
+APP_ENV=${APP_ENV:-production}
+APP_DEBUG=${APP_DEBUG:-false}
+APP_URL=${APP_URL:-https://iam-tfba.onrender.com}
+APP_KEY=${APP_KEY:-}
+APP_TIMEZONE=${APP_TIMEZONE:-UTC}
+APP_LOCALE=${APP_LOCALE:-en}
+LOG_CHANNEL=${LOG_CHANNEL:-stderr}
+DB_CONNECTION=${DB_CONNECTION:-sqlite}
+DB_DATABASE=${DB_DATABASE:-/var/lib/snipeit/snipeit.sqlite}
+DB_HOST=${DB_HOST:-}
+DB_PORT=${DB_PORT:-}
+DB_DATABASE_=${DB_DATABASE_:-}
+DB_USERNAME=${DB_USERNAME:-}
+DB_PASSWORD=${DB_PASSWORD:-}
+FILESYSTEM_DISK=${FILESYSTEM_DISK:-local}
+SESSION_DRIVER=${SESSION_DRIVER:-file}
+CACHE_STORE=${CACHE_STORE:-file}
+QUEUE_CONNECTION=${QUEUE_CONNECTION:-sync}
+MAIL_MAILER=${MAIL_MAILER:-log}
+EOF
+  chown docker:root "$ENV_FILE"
 fi
 
 # AUTO: default seed admin credentials if SEED vars not set (Render free tier)
