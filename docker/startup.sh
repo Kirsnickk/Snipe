@@ -236,6 +236,26 @@ if [ -n "$SEED_ADMIN_EMAIL" ] && [ -n "$SEED_ADMIN_PASSWORD" ]; then
   fi
 fi
 
+# AUTO: ensure settings table has at least 1 row (needed by Snipe-IT setupCompleted()).
+# Without this, Snipe-IT keeps redirecting to /setup even after admin exists.
+php artisan tinker --execute='
+  if (\App\Models\Setting::count() == 0) {
+    $s = new \App\Models\Setting();
+    $s->per_page = 20;
+    $s->site_name = "Kirsnickk IAM";
+    $s->qr_code = 1;
+    $s->barcode_type = "QR";
+    $s->default_currency = "USD";
+    $s->auto_increment_prefix = "";
+    $s->zerofill_count = 5;
+    $s->auto_increment_assets = 1;
+    $s->full_multiple_companies_support = 0;
+    $s->email_domain = "";
+    $s->save();
+    echo "[startup] seeded default settings row\n";
+  }
+' 2>&1 | tail -2 || true
+
 # we do this after the artisan commands to ensure that if the laravel
 # log got created by root, we set the permissions back
 touch /var/www/html/storage/logs/laravel.log
