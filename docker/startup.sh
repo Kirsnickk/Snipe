@@ -254,6 +254,34 @@ fi
 touch /var/www/html/storage/logs/laravel.log
 chown -R docker:root /var/www/html/storage/logs/laravel.log
 
+# AUTO: ensure OAuth client_credentials works for API automation.
+# Passport ships without a usable client by default; create one with a fixed
+# ID + secret so scripts can grab a Bearer token via /oauth/token.
+CLIENT_CREDS_FILE=/var/lib/snipeit/keys/oauth-client.json
+if [ ! -s "$CLIENT_CREDS_FILE" ]; then
+  echo "[startup] ensuring OAuth client_credentials client exists"
+  CLIENT_INFO=$(php artisan tinker --execute='
+    $client = \Laravel\Passport\Client::where("name", "Hermes Automation")->first();
+    if (!$client) {
+      $client = new \Laravel\Passport\Client();
+      $client->owner_id = null;
+      $client->name = "Hermes Automation";
+      $client->redirect = "https://iam-tfba.onrender.com";
+      $client->personal_access_client = false;
+      $client->password_client = false;
+      $client->client = true; // confidential client
+      $client->secret = bin2hex(random_bytes(32));
+      $client->save();
+    }
+    echo $client->id . "|" . $client->secret;
+  ' 2>/dev/null | tail -1)
+  if [ -n "$CLIENT_INFO" ] && [[ "$CLIENT_INFO" == *"|"* ]]; then
+    echo "$CLIENT_INFO" > "$CLIENT_CREDS_FILE"
+    chmod 600 "$CLIENT_CREDS_FILE"
+    echo "[startup] OAuth client saved to $CLIENT_CREDS_FILE"
+  fi
+fi
+
 # AUTO: create a Personal Access Token for the admin so API access works
 # without manual UI interaction. Persist to /var/lib/snipeit/keys/api-token.txt
 # (persistent disk). Reuse on restart if present.
