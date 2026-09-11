@@ -216,34 +216,19 @@ if [ ! -L /var/www/html/public/storage ]; then
   php artisan storage:link 2>&1 | tail -2 || true
 fi
 
-# AUTO: seed first admin user ONLY if no superuser exists AND setup wizard
-# was somehow skipped (e.g., the wizard failed but DB still has user from a
-# previous boot). Snipe-IT's setup wizard creates the first admin itself —
-# do NOT pre-seed or it conflicts with /setup/user validation.
+# AUTO: detect broken setup state from prior boots (admin pre-seeded by old
+# startup.sh but no settings row, blocking /setup wizard). Reset DB so the
+# wizard can create the first user cleanly.
 EXISTING_USER=$(php artisan tinker --execute='echo \App\Models\User::where("permissions","superuser")->count();' 2>/dev/null | tr -d '[:space:]')
 EXISTING_SETTINGS=$(php artisan tinker --execute='echo \App\Models\Setting::count();' 2>/dev/null | tr -d '[:space:]')
 echo "[startup] users=$EXISTING_USER settings=$EXISTING_SETTINGS"
 
-# AUTO: ensure settings table has at least 1 row (needed by Snipe-IT setupCompleted()).
-# Snipe-IT's /setup/migrate writes settings, so this only fires if that step was skipped.
-if [ -z "$EXISTING_SETTINGS" ] || [ "$EXISTING_SETTINGS" = "0" ]; then
-  if [ -n "$EXISTING_USER" ] && [ "$EXISTING_USER" != "0" ]; then
-    echo "[startup] users exist but no settings — seeding settings to bypass /setup loop"
-    php artisan tinker --execute='
-      $s = new \App\Models\Setting();
-      $s->per_page = 20;
-      $s->site_name = "Kirsnickk IAM";
-      $s->qr_code = 1;
-      $s->barcode_type = "QR";
-      $s->default_currency = "USD";
-      $s->auto_increment_prefix = "";
-      $s->zerofill_count = 5;
-      $s->auto_increment_assets = 1;
-      $s->full_multiple_companies_support = 0;
-      $s->email_domain = "";
-      $s->save();
-    ' 2>&1 | tail -2 || true
-  fi
+# If we have admin (from pre-1cab296 boot) but no settings, /setup/user fails
+# with "email/username taken". Reset DB so wizard can re-create from scratch.
+if [ -n "$EXISTING_USER" ] && [ "$EXISTING_USER" != "0" ] && { [ -z "$EXISTING_SETTINGS" ] || [ "$EXISTING_SETTINGS" = "0" ]; }; then
+  echo "[startup] RESET: admin exists but no settings — wiping DB so /setup wizard can complete"
+  php artisan tinker --execute='\App\Models\User::truncate(); \Illuminate\Support\Facades\DB::table("settings")->delete(); echo "reset done\n";' 2>&1 | tail -2 || true
+  EXISTING_USER=0
 fi
 
 # we do this after the artisan commands to ensure that if the laravel
