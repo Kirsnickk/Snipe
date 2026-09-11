@@ -228,6 +228,8 @@ php artisan migrate --force
 php artisan config:clear
 php artisan config:cache
 php artisan view:clear
+php artisan route:clear
+php artisan route:cache
 
 # AUTO: storage symlink for public file access
 if [ ! -L /var/www/html/public/storage ]; then
