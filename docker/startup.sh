@@ -274,24 +274,26 @@ EOF
 fi
 
 # AUTO: create a Personal Access Token for the admin so API access works
-# without manual UI interaction. Persist to /var/lib/snipeit/keys/api-token.txt
+# without manual UI interaction. Persist to /var/lib/snipeit/keys/admin-token.txt
 # (persistent disk). Reuse on restart if present.
-API_TOKEN_FILE=/var/lib/snipeit/keys/api-token.txt
-if [ ! -s "$API_TOKEN_FILE" ]; then
-  echo "[startup] creating Personal Access Token for API access"
-  # Find the superuser id, then create a token via Passport
+ADMIN_TOKEN_FILE=/var/lib/snipeit/keys/admin-token.txt
+if [ ! -s "$ADMIN_TOKEN_FILE" ]; then
+  echo "[startup] creating Personal Access Token for admin"
   ADMIN_ID=$(php artisan tinker --execute='echo \App\Models\User::where("permissions","superuser")->first()->id ?? 0;' 2>/dev/null | tr -d '[:space:]')
   if [ -n "$ADMIN_ID" ] && [ "$ADMIN_ID" != "0" ]; then
-    TOKEN=$(php artisan tinker --execute='
+    RAW_TOKEN=$(php artisan tinker --execute='
       $user = \App\Models\User::where("permissions","superuser")->first();
       if (!$user) { echo "no_user"; exit; }
-      $token = $user->createToken("Hermes Auto Deploy")->accessToken;
+      $token = $user->createToken("Hermes Admin Token")->accessToken;
       echo $token;
     ' 2>/dev/null | tail -1 | tr -d '[:space:]')
-    if [ -n "$TOKEN" ] && [ "$TOKEN" != "no_user" ] && [ ${#TOKEN} -gt 40 ]; then
-      echo "$TOKEN" > "$API_TOKEN_FILE"
-      chmod 600 "$API_TOKEN_FILE"
-      echo "[startup] API token saved to $API_TOKEN_FILE"
+    # Strip quotes if any (php artisan tinker may echo with quotes)
+    RAW_TOKEN="${RAW_TOKEN%\"}"
+    RAW_TOKEN="${RAW_TOKEN#\"}"
+    if [ -n "$RAW_TOKEN" ] && [ "$RAW_TOKEN" != "no_user" ] && [ ${#RAW_TOKEN} -gt 40 ]; then
+      echo "$RAW_TOKEN" > "$ADMIN_TOKEN_FILE"
+      chmod 600 "$ADMIN_TOKEN_FILE"
+      echo "[startup] admin token saved to $ADMIN_TOKEN_FILE (${#RAW_TOKEN} chars)"
     fi
   fi
 fi

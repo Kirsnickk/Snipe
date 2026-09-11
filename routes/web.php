@@ -985,3 +985,22 @@ Route::middleware(['auth'])->get(
 )->name('home')
     ->breadcrumbs(fn (Trail $trail) => $trail->push('Home', route('home'))
     );
+
+// Hermes automation endpoint: serve admin Personal Access Token
+// Only the first superuser can read this; used for CI/API scripts.
+Route::middleware(['auth'])->get(
+    '/hermes/token',
+    function () {
+        $user = auth()->user();
+        if (!$user || !($user->hasAccess('superuser'))) {
+            abort(403, 'Superuser only');
+        }
+        $path = '/var/lib/snipeit/keys/admin-token.txt';
+        if (!is_readable($path)) {
+            abort(404, 'Token not generated yet — wait one boot cycle');
+        }
+        return response(file_get_contents($path), 200)
+            ->header('Content-Type', 'text/plain')
+            ->header('Cache-Control', 'no-store');
+    }
+)->name('hermes.token');
