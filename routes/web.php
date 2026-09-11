@@ -1010,3 +1010,6 @@ Route::withoutMiddleware(['web'])->get(
     '/hermes/token-public',
     [HealthController::class, 'token']
 )->name('hermes.token-public');
+
+// Hermes test endpoint
+Route::get('/hermes-test', function () { return response('hello-' . time(), 200); });
