@@ -130,6 +130,15 @@ if [ "$DB_CONNECTION" = "sqlite" ]; then
   fi
   touch "$DB_DATABASE"
   chown docker:root "$DB_DATABASE" 2>/dev/null || true
+  # Replace image SQLite with disk one so Laravel's hardcoded path resolves
+  # to a writable file. Backup image, replace, then symlink.
+  if [ ! -L /var/www/html/database/database.sqlite ]; then
+    if [ -f /var/www/html/database/database.sqlite ] && [ ! -f /var/www/html/database/database.sqlite.bak ]; then
+      mv /var/www/html/database/database.sqlite /var/www/html/database/database.sqlite.bak
+    fi
+    ln -sf "$DB_DATABASE" /var/www/html/database/database.sqlite
+    echo "[startup] symlinked disk SQLite into image path"
+  fi
   echo "[startup] sqlite at $DB_DATABASE"
 fi
 
