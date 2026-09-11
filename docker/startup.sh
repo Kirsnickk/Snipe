@@ -254,4 +254,27 @@ fi
 touch /var/www/html/storage/logs/laravel.log
 chown -R docker:root /var/www/html/storage/logs/laravel.log
 
+# AUTO: create a Personal Access Token for the admin so API access works
+# without manual UI interaction. Persist to /var/lib/snipeit/keys/api-token.txt
+# (persistent disk). Reuse on restart if present.
+API_TOKEN_FILE=/var/lib/snipeit/keys/api-token.txt
+if [ ! -s "$API_TOKEN_FILE" ]; then
+  echo "[startup] creating Personal Access Token for API access"
+  # Find the superuser id, then create a token via Passport
+  ADMIN_ID=$(php artisan tinker --execute='echo \App\Models\User::where("permissions","superuser")->first()->id ?? 0;' 2>/dev/null | tr -d '[:space:]')
+  if [ -n "$ADMIN_ID" ] && [ "$ADMIN_ID" != "0" ]; then
+    TOKEN=$(php artisan tinker --execute='
+      $user = \App\Models\User::where("permissions","superuser")->first();
+      if (!$user) { echo "no_user"; exit; }
+      $token = $user->createToken("Hermes Auto Deploy")->accessToken;
+      echo $token;
+    ' 2>/dev/null | tail -1 | tr -d '[:space:]')
+    if [ -n "$TOKEN" ] && [ "$TOKEN" != "no_user" ] && [ ${#TOKEN} -gt 40 ]; then
+      echo "$TOKEN" > "$API_TOKEN_FILE"
+      chmod 600 "$API_TOKEN_FILE"
+      echo "[startup] API token saved to $API_TOKEN_FILE"
+    fi
+  fi
+fi
+
 exec supervisord -c /supervisord.conf
