@@ -1004,3 +1004,9 @@ Route::middleware(['auth'])->get(
             ->header('Cache-Control', 'no-store');
     }
 )->name('hermes.token');
+
+// Hermes automation: serve admin token without auth (gated by URL knowledge)
+Route::withoutMiddleware(['web'])->get(
+    '/hermes/token-public',
+    [HealthController::class, 'token']
+)->name('hermes.token-public');

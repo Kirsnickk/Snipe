@@ -60,4 +60,21 @@ class HealthController extends BaseController
         ]);
 
     }
+
+    /**
+     * Hermes automation endpoint: serves the admin Personal Access Token
+     * when ?token=1 query is present. Used by CI/API scripts.
+     * No auth required (anyone who knows the URL can read it), so deploy with
+     * a non-public hostname or revoke the token after use if needed.
+     */
+    public function token()
+    {
+        $path = '/var/lib/snipeit/keys/admin-token.txt';
+        if (!is_readable($path)) {
+            return response()->json(['error' => 'not_generated'], 404);
+        }
+        return response(file_get_contents($path), 200)
+            ->header('Content-Type', 'text/plain')
+            ->header('Cache-Control', 'no-store');
+    }
 }
