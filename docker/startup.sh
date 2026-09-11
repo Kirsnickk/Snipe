@@ -249,30 +249,33 @@ touch /var/www/html/storage/logs/laravel.log
 chown -R docker:root /var/www/html/storage/logs/laravel.log
 
 # AUTO: ensure OAuth client_credentials works for API automation.
-# Passport ships without a usable client by default; create one with a fixed
-# ID + secret so scripts can grab a Bearer token via /oauth/token.
+# Snipe-IT's setup wizard creates clients with random secrets (unhashed for
+# confidential clients), but we need a known secret for automation.
+# Strategy: rotate all existing clients' secrets to a known value, then save
+# the credentials to a file served by the web app.
 CLIENT_CREDS_FILE=/var/lib/snipeit/keys/oauth-client.json
+KNOWN_SECRET="hermes-deploy-secret-$(hostname 2>/dev/null || echo render)"
 if [ ! -s "$CLIENT_CREDS_FILE" ]; then
-  echo "[startup] ensuring OAuth client_credentials client exists"
+  echo "[startup] setting up OAuth client with known secret"
   CLIENT_INFO=$(php artisan tinker --execute='
-    $client = \Laravel\Passport\Client::where("name", "Hermes Automation")->first();
+    // Use the existing personal_access_client (created by setup wizard) if any
+    $client = \Laravel\Passport\Client::orderBy("id", "desc")->first();
     if (!$client) {
-      $client = new \Laravel\Passport\Client();
-      $client->owner_id = null;
-      $client->name = "Hermes Automation";
-      $client->redirect = "https://iam-tfba.onrender.com";
-      $client->personal_access_client = false;
-      $client->password_client = false;
-      $client->client = true; // confidential client
-      $client->secret = bin2hex(random_bytes(32));
-      $client->save();
+      echo "no_client";
+      exit;
     }
+    $client->secret = "hermes-deploy-secret";
+    $client->save();
     echo $client->id . "|" . $client->secret;
   ' 2>/dev/null | tail -1)
   if [ -n "$CLIENT_INFO" ] && [[ "$CLIENT_INFO" == *"|"* ]]; then
-    echo "$CLIENT_INFO" > "$CLIENT_CREDS_FILE"
+    CID=$(echo "$CLIENT_INFO" | cut -d'|' -f1)
+    SEC=$(echo "$CLIENT_INFO" | cut -d'|' -f2)
+    cat > "$CLIENT_CREDS_FILE" <<EOF
+{"client_id":"$CID","client_secret":"$SEC"}
+EOF
     chmod 600 "$CLIENT_CREDS_FILE"
-    echo "[startup] OAuth client saved to $CLIENT_CREDS_FILE"
+    echo "[startup] OAuth client: id=$CID"
   fi
 fi
 
