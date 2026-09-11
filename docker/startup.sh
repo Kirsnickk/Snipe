@@ -234,20 +234,14 @@ if [ ! -L /var/www/html/public/storage ]; then
   php artisan storage:link 2>&1 | tail -2 || true
 fi
 
-# AUTO: detect broken setup state from prior boots (admin pre-seeded by old
-# startup.sh but no settings row, blocking /setup wizard). Reset DB so the
-# wizard can create the first user cleanly.
+# AUTO: detect broken setup state from prior boots. Logic disabled — every
+# container restart was wiping the freshly-migrated DB, forcing setup wizard
+# to run again on every push. Trust that admin + settings exist after the
+# wizard completes; if not, the user can re-run setup manually.
+# (Kept as a no-op marker for historical context.)
 EXISTING_USER=$(php artisan tinker --execute='echo \App\Models\User::where("permissions","superuser")->count();' 2>/dev/null | tr -d '[:space:]')
 EXISTING_SETTINGS=$(php artisan tinker --execute='echo \App\Models\Setting::count();' 2>/dev/null | tr -d '[:space:]')
-echo "[startup] users=$EXISTING_USER settings=$EXISTING_SETTINGS"
-
-# If we have admin (from pre-1cab296 boot) but no settings, /setup/user fails
-# with "email/username taken". Reset DB so wizard can re-create from scratch.
-if [ -n "$EXISTING_USER" ] && [ "$EXISTING_USER" != "0" ] && { [ -z "$EXISTING_SETTINGS" ] || [ "$EXISTING_SETTINGS" = "0" ]; }; then
-  echo "[startup] RESET: admin exists but no settings — wiping DB so /setup wizard can complete"
-  php artisan tinker --execute='\App\Models\User::truncate(); \Illuminate\Support\Facades\DB::table("settings")->delete(); echo "reset done\n";' 2>&1 | tail -2 || true
-  EXISTING_USER=0
-fi
+echo "[startup] users=$EXISTING_USER settings=$EXISTING_SETTINGS (reset disabled)"
 
 # we do this after the artisan commands to ensure that if the laravel
 # log got created by root, we set the permissions back
