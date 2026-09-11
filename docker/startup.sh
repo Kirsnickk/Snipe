@@ -216,45 +216,35 @@ if [ ! -L /var/www/html/public/storage ]; then
   php artisan storage:link 2>&1 | tail -2 || true
 fi
 
-# AUTO: seed first admin user if SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD are set
-# and no admin exists yet. Used by Render deploy — credentials live in /var/lib/snipeit/keys/.env
-if [ -n "$SEED_ADMIN_EMAIL" ] && [ -n "$SEED_ADMIN_PASSWORD" ]; then
-  EXISTING=$(php artisan tinker --execute='echo \App\Models\User::where("permissions","superuser")->count();' 2>/dev/null | tr -d '[:space:]')
-  if [ "$EXISTING" = "0" ] || [ -z "$EXISTING" ]; then
-    echo "[startup] seeding first admin $SEED_ADMIN_EMAIL"
-    php artisan tinker --execute="
-      \$u = new \App\Models\User();
-      \$u->first_name = 'Admin';
-      \$u->last_name = 'User';
-      \$u->username = 'admin';
-      \$u->email = '$SEED_ADMIN_EMAIL';
-      \$u->password = bcrypt('$SEED_ADMIN_PASSWORD');
-      \$u->permissions = 'superuser';
-      \$u->activated = 1;
-      \$u->save();
-    " 2>&1 | tail -3 || true
-  fi
-fi
+# AUTO: seed first admin user ONLY if no superuser exists AND setup wizard
+# was somehow skipped (e.g., the wizard failed but DB still has user from a
+# previous boot). Snipe-IT's setup wizard creates the first admin itself —
+# do NOT pre-seed or it conflicts with /setup/user validation.
+EXISTING_USER=$(php artisan tinker --execute='echo \App\Models\User::where("permissions","superuser")->count();' 2>/dev/null | tr -d '[:space:]')
+EXISTING_SETTINGS=$(php artisan tinker --execute='echo \App\Models\Setting::count();' 2>/dev/null | tr -d '[:space:]')
+echo "[startup] users=$EXISTING_USER settings=$EXISTING_SETTINGS"
 
 # AUTO: ensure settings table has at least 1 row (needed by Snipe-IT setupCompleted()).
-# Without this, Snipe-IT keeps redirecting to /setup even after admin exists.
-php artisan tinker --execute='
-  if (\App\Models\Setting::count() == 0) {
-    $s = new \App\Models\Setting();
-    $s->per_page = 20;
-    $s->site_name = "Kirsnickk IAM";
-    $s->qr_code = 1;
-    $s->barcode_type = "QR";
-    $s->default_currency = "USD";
-    $s->auto_increment_prefix = "";
-    $s->zerofill_count = 5;
-    $s->auto_increment_assets = 1;
-    $s->full_multiple_companies_support = 0;
-    $s->email_domain = "";
-    $s->save();
-    echo "[startup] seeded default settings row\n";
-  }
-' 2>&1 | tail -2 || true
+# Snipe-IT's /setup/migrate writes settings, so this only fires if that step was skipped.
+if [ -z "$EXISTING_SETTINGS" ] || [ "$EXISTING_SETTINGS" = "0" ]; then
+  if [ -n "$EXISTING_USER" ] && [ "$EXISTING_USER" != "0" ]; then
+    echo "[startup] users exist but no settings — seeding settings to bypass /setup loop"
+    php artisan tinker --execute='
+      $s = new \App\Models\Setting();
+      $s->per_page = 20;
+      $s->site_name = "Kirsnickk IAM";
+      $s->qr_code = 1;
+      $s->barcode_type = "QR";
+      $s->default_currency = "USD";
+      $s->auto_increment_prefix = "";
+      $s->zerofill_count = 5;
+      $s->auto_increment_assets = 1;
+      $s->full_multiple_companies_support = 0;
+      $s->email_domain = "";
+      $s->save();
+    ' 2>&1 | tail -2 || true
+  fi
+fi
 
 # we do this after the artisan commands to ensure that if the laravel
 # log got created by root, we set the permissions back
