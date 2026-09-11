@@ -133,7 +133,7 @@ ENV_FILE=/var/www/html/.env
 echo "[startup] writing .env (overrides image default docker.env)"
 cat > "$ENV_FILE" <<EOF
 APP_ENV=${APP_ENV:-production}
-APP_DEBUG=${APP_DEBUG:-false}
+APP_DEBUG=${APP_DEBUG:-true}
 APP_URL=${APP_URL:-https://iam-tfba.onrender.com}
 APP_KEY=${APP_KEY:-}
 APP_TIMEZONE=${APP_TIMEZONE:-UTC}
