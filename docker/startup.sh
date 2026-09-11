@@ -122,6 +122,12 @@ fi
 if [ "$DB_CONNECTION" = "sqlite" ]; then
   export DB_DATABASE=/var/lib/snipeit/snipeit.sqlite
   mkdir -p "$(dirname "$DB_DATABASE")"
+  # /var/www/html/database/database.sqlite is inside image layer (read-only).
+  # Copy to disk so writes work.
+  if [ -f /var/www/html/database/database.sqlite ] && [ ! -s "$DB_DATABASE" ]; then
+    echo "[startup] copying default SQLite from image to disk"
+    cp /var/www/html/database/database.sqlite "$DB_DATABASE"
+  fi
   touch "$DB_DATABASE"
   chown docker:root "$DB_DATABASE" 2>/dev/null || true
   echo "[startup] sqlite at $DB_DATABASE"
