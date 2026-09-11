@@ -251,32 +251,26 @@ chown -R docker:root /var/www/html/storage/logs/laravel.log
 # AUTO: ensure OAuth client_credentials works for API automation.
 # Snipe-IT's setup wizard creates clients with random secrets (unhashed for
 # confidential clients), but we need a known secret for automation.
-# Strategy: rotate all existing clients' secrets to a known value, then save
-# the credentials to a file served by the web app.
-CLIENT_CREDS_FILE=/var/lib/snipeit/keys/oauth-client.json
-KNOWN_SECRET="hermes-deploy-secret-$(hostname 2>/dev/null || echo render)"
-if [ ! -s "$CLIENT_CREDS_FILE" ]; then
-  echo "[startup] setting up OAuth client with known secret"
-  CLIENT_INFO=$(php artisan tinker --execute='
-    // Use the existing personal_access_client (created by setup wizard) if any
-    $client = \Laravel\Passport\Client::orderBy("id", "desc")->first();
-    if (!$client) {
-      echo "no_client";
-      exit;
-    }
-    $client->secret = "hermes-deploy-secret";
-    $client->save();
-    echo $client->id . "|" . $client->secret;
-  ' 2>/dev/null | tail -1)
-  if [ -n "$CLIENT_INFO" ] && [[ "$CLIENT_INFO" == *"|"* ]]; then
-    CID=$(echo "$CLIENT_INFO" | cut -d'|' -f1)
-    SEC=$(echo "$CLIENT_INFO" | cut -d'|' -f2)
-    cat > "$CLIENT_CREDS_FILE" <<EOF
-{"client_id":"$CID","client_secret":"$SEC"}
+# Strategy: rotate all existing clients' secrets to a known value on every
+# boot. (Setup wizard only runs once; persistent secret rotation is fine.)
+KNOWN_SECRET="hermes-deploy-secret"
+CLIENT_INFO=$(php artisan tinker --execute='
+  $client = \Laravel\Passport\Client::orderBy("id", "desc")->first();
+  if (!$client) {
+    echo "no_client";
+    exit;
+  }
+  $client->secret = "'$KNOWN_SECRET'";
+  $client->save();
+  echo $client->id . "|" . $client->secret;
+' 2>/dev/null | tail -1)
+if [ -n "$CLIENT_INFO" ] && [[ "$CLIENT_INFO" == *"|"* ]]; then
+  CID=$(echo "$CLIENT_INFO" | cut -d'|' -f1)
+  cat > /var/lib/snipeit/keys/oauth-client.json <<EOF
+{"client_id":"$CID","client_secret":"$KNOWN_SECRET"}
 EOF
-    chmod 600 "$CLIENT_CREDS_FILE"
-    echo "[startup] OAuth client: id=$CID"
-  fi
+  chmod 600 /var/lib/snipeit/keys/oauth-client.json
+  echo "[startup] OAuth client rotated: id=$CID"
 fi
 
 # AUTO: create a Personal Access Token for the admin so API access works
