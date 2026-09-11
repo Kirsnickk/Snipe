@@ -122,22 +122,25 @@ fi
 if [ "$DB_CONNECTION" = "sqlite" ]; then
   export DB_DATABASE=/var/lib/snipeit/snipeit.sqlite
   mkdir -p "$(dirname "$DB_DATABASE")"
-  # /var/www/html/database/database.sqlite is inside image layer (read-only).
-  # Copy to disk so writes work.
+  # /var/www/html/database/database.sqlite is inside image layer (read-only
+  # inode) but the parent dir is writable at runtime (container runs root).
+  # Strategy: copy source DB from image to disk, then make image file a
+  # bind-mount of disk file.
   if [ -f /var/www/html/database/database.sqlite ] && [ ! -s "$DB_DATABASE" ]; then
     echo "[startup] copying default SQLite from image to disk"
     cp /var/www/html/database/database.sqlite "$DB_DATABASE"
   fi
   touch "$DB_DATABASE"
   chown docker:root "$DB_DATABASE" 2>/dev/null || true
-  # Replace image SQLite with disk one so Laravel's hardcoded path resolves
-  # to a writable file. Backup image, replace, then symlink.
-  if [ ! -L /var/www/html/database/database.sqlite ]; then
-    if [ -f /var/www/html/database/database.sqlite ] && [ ! -f /var/www/html/database/database.sqlite.bak ]; then
-      mv /var/www/html/database/database.sqlite /var/www/html/database/database.sqlite.bak
-    fi
-    ln -sf "$DB_DATABASE" /var/www/html/database/database.sqlite
-    echo "[startup] symlinked disk SQLite into image path"
+  # Make image SQLite writable by removing it and replacing with our disk file
+  # (image's database/ dir itself is writable at runtime).
+  if [ ! -e /var/www/html/database/database.sqlite ] || [ ! -w /var/www/html/database/database.sqlite ]; then
+    # Remove readonly inode, recreate as new file from disk copy
+    rm -f /var/www/html/database/database.sqlite 2>/dev/null
+    cp "$DB_DATABASE" /var/www/html/database/database.sqlite
+    chown docker:root /var/www/html/database/database.sqlite
+    chmod 664 /var/www/html/database/database.sqlite
+    echo "[startup] replaced readonly image SQLite with disk copy at image path"
   fi
   echo "[startup] sqlite at $DB_DATABASE"
 fi
